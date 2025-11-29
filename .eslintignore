@@ -1,0 +1,5 @@
+node_modules/
+coverage/
+migrations/**/*.js
+*.config.js
+.env
