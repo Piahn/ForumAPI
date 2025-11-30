@@ -7,6 +7,7 @@ const ServerTestHelper = require('../../../../tests/ServerTestHelper');
 const container = require('../../container');
 const createServer = require('../createServer');
 const RepliesTableTestHelper = require('../../../../tests/RepliesTableTestHelper');
+const LikesTableTestHelper = require('../../../../tests/LikesTableTestHelper');
 
 describe('/threads endpoints concerning CRUD', () => {
   afterEach(async () => {
@@ -15,6 +16,7 @@ describe('/threads endpoints concerning CRUD', () => {
     await AuthenticationsTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await RepliesTableTestHelper.cleanTable();
+    await LikesTableTestHelper.cleanTable();
   });
 
   afterAll(async () => {
@@ -198,6 +200,59 @@ describe('/threads endpoints concerning CRUD', () => {
       expect(response.statusCode).toEqual(404);
       expect(responseJson.status).toEqual('fail');
       expect(responseJson.message).toBeDefined();
+    });
+  });
+
+  describe('when GET /threads/{threadId}', () => {
+    it('should respond with 200 with thread details, comments, replies, and correct likeCount', async () => {
+      const server = await createServer(container);
+
+      const threadId = 'thread-123';
+      // Setup Users
+      await UsersTableTestHelper.addUser({ id: 'user-123', username: 'JohnDoe' });
+      await UsersTableTestHelper.addUser({ id: 'user-456', username: 'JaneDoe' });
+
+      // Setup Thread
+      await ThreadableTestHelper.addThread({ id: threadId, owner: 'user-123' });
+
+      // Setup Comments
+      await CommentsTableTestHelper.addComment({ id: 'comment-123', threadId, owner: 'user-123' });
+      await CommentsTableTestHelper.addComment({ id: 'comment-456', threadId, owner: 'user-123' });
+
+      // Setup Likes (Manual injection via helper)
+      // Comment-123 disukai oleh 2 user
+      await LikesTableTestHelper.addLike({ id: 'like-1', commentId: 'comment-123', owner: 'user-123' });
+      await LikesTableTestHelper.addLike({ id: 'like-2', commentId: 'comment-123', owner: 'user-456' });
+
+      // Setup Replies
+      await RepliesTableTestHelper.addReply({ id: 'reply-123', commentId: 'comment-456', owner: 'user-123' });
+
+      // Action
+      const response = await server.inject({
+        method: 'GET',
+        url: `/threads/${threadId}`,
+      });
+
+      const responseJson = JSON.parse(response.payload);
+      expect(response.statusCode).toEqual(200);
+      expect(responseJson.status).toEqual('success');
+      expect(responseJson.data).toBeDefined();
+
+      const { thread } = responseJson.data;
+      expect(thread).toBeDefined();
+      expect(thread.id).toEqual(threadId);
+      expect(thread.comments).toHaveLength(2);
+
+      // Verifikasi Comment 1 (Harus punya 2 like)
+      const comment1 = thread.comments.find((c) => c.id === 'comment-123');
+      expect(comment1).toBeDefined();
+      expect(comment1.likeCount).toEqual(2); // Validasi likeCount
+      expect(typeof comment1.likeCount).toEqual('number');
+
+      // Verifikasi Comment 2 (Harus punya 0 like)
+      const comment2 = thread.comments.find((c) => c.id === 'comment-456');
+      expect(comment2).toBeDefined();
+      expect(comment2.likeCount).toEqual(0); // Validasi likeCount
     });
   });
 });
