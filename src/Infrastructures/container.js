@@ -19,6 +19,8 @@ const CommentRepository = require('../Domains/comments/CommentRepository');
 const CommentRepositoryPostgres = require('./repository/CommentRepositoryPostgres');
 const ReplyRepository = require('../Domains/replies/ReplyRepository');
 const ReplyRepositoryPostgres = require('./repository/ReplyRepositoryPostgres');
+const CommentLikeRepository = require('../Domains/likes/CommentlikeRepository');
+const LikesRepositoryPostgres = require('./repository/LikesRepositoryPostgres');
 
 // use case
 const AddUserUseCase = require('../Applications/use_case/AddUserUseCase');
@@ -35,6 +37,7 @@ const DeleteCommentUseCase = require('../Applications/use_case/DeleteCommentUseC
 const AddReplyUseCase = require('../Applications/use_case/AddReplyUseCase');
 const DeleteReplyUseCase = require('../Applications/use_case/DeleteReplyUseCase');
 const GetThreadUseCase = require('../Applications/use_case/GetThreadUseCase');
+const AddLikeUseCase = require('../Applications/use_case/AddLikeUseCase');
 
 // creating container
 const container = createContainer();
@@ -237,6 +240,10 @@ container.register([
           name: 'replyRepository',
           internal: ReplyRepository.name,
         },
+        {
+          name: 'likeRepository',
+          internal: CommentLikeRepository.name,
+        },
       ],
     },
   },
@@ -313,6 +320,16 @@ container.register([
           name: 'threadRepository',
           internal: ThreadRepository.name,
         },
+      ],
+    },
+  },
+  {
+    key: CommentLikeRepository.name,
+    Class: LikesRepositoryPostgres,
+    parameter: {
+      dependencies: [
+        { concrete: pool },
+        { concrete: () => nanoid(9) },
       ],
     },
   },
